@@ -1,38 +1,115 @@
 import { Request, Response } from 'express';
-import { Event } from '../types/event';
+import { prisma } from '../lib/db';
 
-let events: Event[] = [];
-
-export const getEvents = (req: Request, res: Response) => {
-    res.json(events);
-};
-export const createEvent = (req: Request, res: Response) => {
-    const { name, categoryId, tanggal, description } = req.body;
-
-    if (!name || !categoryId || !tanggal) {
-        return res.status(500).json({ message: 'data harus diisi' });
+export const getEvents = async (req: Request, res: Response) => {
+    try {
+        const allEvent = await prisma.event.findMany({
+            orderBy: { createdAt: "desc" },
+            include: {
+                category: true,
+                pembicara: true,
+            }
+        });
+        res.json(allEvent);
+    } catch (error) {
+        res.status(500).json({ message: 'Terjadi kesalahan server', error });
     }
-    const newEvent: Event = {
-        id: Date.now(),
-        name: name,
-        categoryId: categoryId,
-        tanggal: new Date(tanggal),
-        description: description,
-    };
-    events.push(newEvent);
-    res.status(201).json(newEvent);
 };
-export const getEventById = (req: Request, res: Response) => {
-    const id = Number(req.params.id);
-    const event = events.find(e => e.id === id);
-    //jika data tdk ada
-    if (!event) {
-        return res.status(404).json({ message: "Event tidak ditemukan" });
+
+export const createEvent = async (req: Request, res: Response) => {
+    try {
+        const { name, categoryId, pembicaraId, tanggal, description } = req.body;
+        if (!name || !categoryId || !pembicaraId || !tanggal) {
+            return res.status(400).json({ message: 'data harus diisi' });
+        }
+        const tanggalDate = new Date(tanggal);
+        if (isNaN(tanggalDate.getTime())) {
+            return res.status(400).json({ message: 'Format tanggal tidak valid' });
+        }
+        const newEvent = await prisma.event.create({
+            data: {
+                name,
+                categoryId: Number(categoryId),
+                pembicaraId: Number(pembicaraId),
+                tanggal: tanggalDate,
+                description,
+            }
+        });
+        res.status(201).json(newEvent);
+    } catch (error) {
+        res.status(500).json({ message: 'Terjadi kesalahan server', error });
     }
-    //jika data ada
-    res.json(event);
 };
-export const updateEvent = (req: Request, res: Response) => {
+
+export const getEventById = async (req: Request, res: Response) => {
+    try {
+        const id = Number(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ message: 'ID tidak valid' });
+        }
+        const event = await prisma.event.findUnique({
+            where: { id },
+            include: {
+                category: true,
+                pembicara: true,
+            }
+        });
+        if (!event) {
+            return res.status(404).json({ message: "Event tidak ditemukan" });
+        }
+        res.json(event);
+    } catch (error) {
+        res.status(500).json({ message: 'Terjadi kesalahan server', error });
+    }
 };
-export const deleteEvent = (req: Request, res: Response) => {
+
+export const updateEvent = async (req: Request, res: Response) => {
+    try {
+        const id = Number(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ message: 'ID tidak valid' });
+        }
+        const { name, categoryId, pembicaraId, tanggal, description } = req.body;
+        if (!name || !categoryId || !pembicaraId || !tanggal) {
+            return res.status(400).json({ message: 'data harus diisi' });
+        }
+        const tanggalDate = new Date(tanggal);
+        if (isNaN(tanggalDate.getTime())) {
+            return res.status(400).json({ message: 'Format tanggal tidak valid' });
+        }
+        const existing = await prisma.event.findUnique({ where: { id } });
+        if (!existing) {
+            return res.status(404).json({ message: "Event tidak ditemukan" });
+        }
+        const updated = await prisma.event.update({
+            where: { id },
+            data: {
+                name,
+                categoryId: Number(categoryId),
+                pembicaraId: Number(pembicaraId),
+                tanggal: tanggalDate,
+                description,
+            }
+        });
+        res.json(updated);
+    } catch (error) {
+        res.status(500).json({ message: 'Terjadi kesalahan server', error });
+    }
+};
+
+export const deleteEvent = async (req: Request, res: Response) => {
+    try {
+        const id = Number(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ message: 'ID tidak valid' });
+        }
+        const existing = await prisma.event.findUnique({ where: { id } });
+        if (!existing) {
+            return res.status(404).json({ message: "Event tidak ditemukan" });
+        }
+        await prisma.event.delete({ where: { id } });
+        res.json({ message: "Event berhasil dihapus" });
+    } catch (error) {
+        res.status(500).json({ message: 'Terjadi kesalahan server', error });
+    }
 };
