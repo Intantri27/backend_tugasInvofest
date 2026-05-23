@@ -5,7 +5,7 @@ import categoryRoute from "./routes/categoryRoute";
 import pembicaraRoute from "./routes/pembicaraRoutes";
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000; // ← pakai env variable
 
 app.use(cors());
 app.use(express.json());
@@ -18,7 +18,6 @@ app.use('/events', eventRoute);
 app.use('/categories', categoryRoute);
 app.use('/pembicara', pembicaraRoute);
 
-
 app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+  console.log(`Server is running on port ${port}`);
 });
